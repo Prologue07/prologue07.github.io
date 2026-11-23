@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <title>借来的笔触 · MomenT</title>
+  <meta name="description" content="一个用 AdaIN 重绘照片的视觉实验。翻看三十幅实验作品，或用自己的照片和参考画，在浏览器里完成风格迁移。">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="gallery.js"></script>
+  <script defer src="studio.js"></script>
+</head>
+<body>
+<a class="skip" href="#works">直接看作品</a>
+<div class="shell">
+  <header><a class="signature" href="https://prologue07.github.io/"><i aria-hidden="true"></i>MomenT</a>
+    <nav aria-label="站内导航"><a href="#works">作品</a><a href="#studio">创作台</a><a href="#notes">手记</a></nav>
+  </header>
+  <main>
+    <section id="works" aria-labelledby="title">
+      <div class="hero">
+        <div class="intro">
+          <div class="kicker"><span></span> 图像风格迁移实验</div>
+          <h1 id="title">借来的<br><em>笔触</em><b>。</b></h1>
+          <p class="deck">同一段石阶，遇上《星月夜》会变成什么样？选一张照片，借一幅画的颜色与纹理，看看哪些细节还留在原处。</p>
+          <a class="solid" href="#studio">用自己的照片试试</a>
+          <div class="byline">韦君豪 <span>/</span> <em>AdaIN, a visual study</em></div>
+        </div>
+        <figure class="herofigure">
+          <div class="mat">
+            <div class="compare" id="compare">
+              <img id="after" alt="迁移后的画面"><img id="before" alt="同一场景的原始照片">
+              <span class="tag left">原片</span><span class="tag right">迁移</span>
+              <span class="seam" aria-hidden="true"><i>‹ ›</i></span>
+              <input id="split" type="range" aria-label="原片与迁移结果的分界线" min="0" max="100" value="31">
+            </div>
+          </div>
+          <figcaption><strong id="pair-title" aria-live="polite">城楼石阶 × 星月夜</strong><span>拖动分界线，对照原片</span></figcaption>
+        </figure>
+      </div>
+      <div class="shelf">
+        <section aria-label="选择照片"><h2>原片 <i>Photographs</i></h2><div class="choices photos" id="photos"></div></section>
+        <section aria-label="选择参考画"><h2>参考画 <i>Palette</i></h2><div class="choices paintings" id="paintings"></div></section>
+      </div>
+    </section>
+    <section id="studio" aria-labelledby="studio-title">
+      <div class="section-title"><h2 id="studio-title">自己的画室</h2><i>Studio</i></div>
+      <p class="section-desc">沿用上面选中的组合，或换成自己的图片。照片与参考画只在你的设备上处理。</p>
+      <div class="workspace">
+        <fieldset id="controls"><legend class="sr">创作参数</legend>
+          <div class="input-row"><img id="thumb-c" alt=""><div><label for="pick-c">内容照片</label><select id="pick-c"></select></div><label class="file-button">选文件<input id="file-c" type="file" accept="image/*" aria-label="导入内容照片"></label></div>
+          <div class="input-row"><img id="thumb-s" alt=""><div><label for="pick-s">风格参考</label><select id="pick-s"></select></div><label class="file-button">选文件<input id="file-s" type="file" accept="image/*" aria-label="导入风格参考画"></label></div>
+          <div class="strength"><label for="alpha">风格强度 <span>α</span></label><output id="alpha-value" for="alpha">0.80</output>
+            <input id="alpha" type="range" min="0" max="1" step="0.05" value="0.8"><div><span>保留构图</span><span>增强笔触</span></div></div>
+          <button class="solid" id="run" type="button">生成作品</button>
+          <p class="fine">首次生成需载入约 28 MB 模型。生成图像的长边最多 384 像素。</p>
+        </fieldset>
+        <div class="easel">
+          <div id="empty-art"><div class="preview-pair" aria-hidden="true"><img id="stack-c" alt=""><img id="stack-s" alt=""></div><p>选好照片和参考画，就可以落笔了。</p></div>
+          <canvas id="result" hidden aria-label="生成的风格迁移作品"></canvas>
+          <div class="easel-foot"><span id="status" role="status">等待生成</span><a id="download" hidden download="borrowed-brushstrokes.png">保存 PNG</a></div>
+        </div>
+      </div>
+    </section>
+    <section id="notes" aria-labelledby="notes-title">
+      <div class="section-title"><h2 id="notes-title">实验手记</h2><i>Notes</i></div>
+      <div class="notes-grid"><div><h3>一幅画怎样改变一张照片？</h3><p>编码器把照片拆成一组特征图。AdaIN 逐通道调整这些特征的均值和标准差，让它们接近参考画，再由解码器重建图像。城楼的轮廓往往还能辨认，瓦片、天空和草地的纹理则发生了变化。</p></div>
+      <div><h3>强度旋钮改变了什么？</h3><p>α 控制解码前的特征插值。调到零时，看到的是解码器对照片的重建；调到一时，解码器接收完整的风格化特征。每个位置都会重新运行模型。</p></div></div>
+      <div class="record"><span>VGG-19 · relu4_1</span><span>MS-COCO / WikiArt</span><span>解码器 · 第 10 轮</span></div>
+      <div class="refs"><a href="https://arxiv.org/abs/1703.06868">AdaIN 原论文</a><a id="weights" href="decoder_epoch_10.pth" download>下载原始解码器权重</a></div>
+    </section>
+  </main>
+  <footer><a class="signature" href="https://prologue07.github.io/">MomenT</a><span>借来的笔触 · 韦君豪</span><a href="#works">回到作品</a></footer>
+</div>
+<noscript>请启用 JavaScript 来查看作品和运行风格迁移。</noscript>
+</body></html>
