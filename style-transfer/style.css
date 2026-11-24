@@ -12,3 +12,16 @@ body{margin:0}img{display:block;max-width:100%}a{color:inherit;text-decoration:n
 @media(max-width:980px){.shelf{grid-template-columns:200px 1fr;gap:24px}.paintings{grid-template-columns:repeat(5,1fr);gap:10px}.paintings .choice img{aspect-ratio:1.9}.hero{gap:26px}.byline{margin-top:20px}}
 @media(max-width:720px){header{height:62px}.signature{font-size:1.48rem}.hero,.workspace,.notes-grid{grid-template-columns:1fr}.hero{gap:24px;padding-top:28px}.intro{display:grid;grid-template-columns:1fr auto;align-items:end;column-gap:10px}.kicker,.deck{grid-column:1/-1}h1{font-size:clamp(3.5rem,10.8vw,5.5rem);grid-column:1/-1;margin:17px 0 13px}h1 br{display:none}.intro .solid{grid-row:4;width:fit-content;margin-top:14px}.byline{display:none}.compare{aspect-ratio:1.43}.shelf{grid-template-columns:1fr}.photos{max-width:320px}.paintings{gap:8px}.choice span{font-size:.8rem}.shelf h2{margin-bottom:8px}.easel{min-height:290px;border-left:0;border-top:1px solid var(--line)}.notes-grid{gap:20px}figcaption{align-items:flex-start}.refs{gap:18px}.section-desc{margin-bottom:15px}}
 @media(max-width:390px){.shell{padding:0 15px}figcaption{flex-direction:column;gap:4px}.input-row{gap:7px}.signature{gap:7px}}
+
+.view-mode{display:inline-flex;align-items:center;gap:.5rem;color:var(--muted);white-space:nowrap}
+.view-mode select{font:inherit;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--line);padding:.3rem 0;cursor:pointer}
+#gallery-status{font-size:.88rem;color:var(--muted)}
+.model-choice{padding:0;margin:0 0 20px}
+.model-choice legend{font-size:.9rem;font-weight:600;padding:0;margin-bottom:8px}
+.model-choice>div{display:flex;border:1px solid var(--line)}
+.model-choice label{position:relative;display:block;flex:1;cursor:pointer}
+.model-choice input{position:absolute;width:1px;height:1px;opacity:0}
+.model-choice span{display:block;text-align:center;padding:10px 4px;font-size:.92rem;color:var(--muted)}
+.model-choice input:checked+span{color:var(--blue);background:#e7ebf3;box-shadow:inset 0 -2px var(--blue);font-weight:600}
+.model-choice input:focus-visible+span{outline:2px solid var(--blue);outline-offset:2px}
+.refs{flex-wrap:wrap}

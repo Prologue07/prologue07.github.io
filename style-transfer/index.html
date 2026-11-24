@@ -7,9 +7,9 @@
   <title>借来的笔触 · MomenT</title>
   <meta name="description" content="一个用 AdaIN 重绘照片的视觉实验。翻看三十幅实验作品，或用自己的照片和参考画，在浏览器里完成风格迁移。">
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
   <script defer src="gallery.js"></script>
-  <script defer src="studio.js"></script>
+  <script defer src="studio.js?v=2"></script>
 </head>
 <body>
 <a class="skip" href="#works">直接看作品</a>
@@ -36,7 +36,8 @@
               <input id="split" type="range" aria-label="原片与迁移结果的分界线" min="0" max="100" value="31">
             </div>
           </div>
-          <figcaption><strong id="pair-title" aria-live="polite">城楼石阶 × 星月夜</strong><span>拖动分界线，对照原片</span></figcaption>
+          <figcaption><strong id="pair-title" aria-live="polite">城楼石阶 × 星月夜</strong><label class="view-mode">对照<select id="exhibit-mode" aria-label="选择展览对照方式"><option value="original-ours">原片 / 我们</option><option value="original-author">原片 / 论文作者</option><option value="ours-author">我们 / 论文作者</option></select></label></figcaption>
+          <p id="gallery-status" role="status" hidden></p>
         </figure>
       </div>
       <div class="shelf">
@@ -49,12 +50,16 @@
       <p class="section-desc">沿用上面选中的组合，或换成自己的图片。照片与参考画只在你的设备上处理。</p>
       <div class="workspace">
         <fieldset id="controls"><legend class="sr">创作参数</legend>
+          <fieldset class="model-choice"><legend>创作模型</legend><div>
+            <label><input type="radio" name="studio-model" value="ours" checked><span>我们的模型</span></label>
+            <label><input type="radio" name="studio-model" value="author"><span>论文作者模型</span></label>
+          </div></fieldset>
           <div class="input-row"><img id="thumb-c" alt=""><div><label for="pick-c">内容照片</label><select id="pick-c"></select></div><label class="file-button">选文件<input id="file-c" type="file" accept="image/*" aria-label="导入内容照片"></label></div>
           <div class="input-row"><img id="thumb-s" alt=""><div><label for="pick-s">风格参考</label><select id="pick-s"></select></div><label class="file-button">选文件<input id="file-s" type="file" accept="image/*" aria-label="导入风格参考画"></label></div>
           <div class="strength"><label for="alpha">风格强度 <span>α</span></label><output id="alpha-value" for="alpha">0.80</output>
             <input id="alpha" type="range" min="0" max="1" step="0.05" value="0.8"><div><span>保留构图</span><span>增强笔触</span></div></div>
           <button class="solid" id="run" type="button">生成作品</button>
-          <p class="fine">首次生成需载入约 28 MB 模型。生成图像的长边最多 384 像素。</p>
+          <p class="fine">每套模型首次使用时载入约 28 MB。生成后切换模型，可对照同一组输入。</p>
         </fieldset>
         <div class="easel">
           <div id="empty-art"><div class="preview-pair" aria-hidden="true"><img id="stack-c" alt=""><img id="stack-s" alt=""></div><p>选好照片和参考画，就可以落笔了。</p></div>
@@ -67,8 +72,8 @@
       <div class="section-title"><h2 id="notes-title">实验手记</h2><i>Notes</i></div>
       <div class="notes-grid"><div><h3>一幅画怎样改变一张照片？</h3><p>编码器把照片拆成一组特征图。AdaIN 逐通道调整这些特征的均值和标准差，让它们接近参考画，再由解码器重建图像。城楼的轮廓往往还能辨认，瓦片、天空和草地的纹理则发生了变化。</p></div>
       <div><h3>强度旋钮改变了什么？</h3><p>α 控制解码前的特征插值。调到零时，看到的是解码器对照片的重建；调到一时，解码器接收完整的风格化特征。每个位置都会重新运行模型。</p></div></div>
-      <div class="record"><span>VGG-19 · relu4_1</span><span>MS-COCO / WikiArt</span><span>解码器 · 第 10 轮</span></div>
-      <div class="refs"><a href="https://arxiv.org/abs/1703.06868">AdaIN 原论文</a><a id="weights" href="decoder_epoch_10.pth" download>下载原始解码器权重</a></div>
+      <div class="record"><span>VGG-19 · relu4_1</span><span>我们的模型 · 第 10 轮</span><span>论文作者模型 · PyTorch 转换版</span></div>
+      <div class="refs"><a href="https://arxiv.org/abs/1703.06868">AdaIN 原论文</a><a id="weights" href="decoder_epoch_10.pth" download>下载我们的解码器</a><a href="https://github.com/naoto0804/pytorch-AdaIN/releases/tag/v0.0.0">作者权重的 PyTorch 转换版</a></div>
     </section>
   </main>
   <footer><a class="signature" href="https://prologue07.github.io/">MomenT</a><span>借来的笔触 · 韦君豪</span><a href="#works">回到作品</a></footer>

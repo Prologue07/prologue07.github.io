@@ -1,8 +1,8 @@
 const manifest={"layers": [[3, 64], [64, 64], [64, 128], [128, 128], [128, 256], [256, 256], [256, 256], [256, 256], [256, 512], [512, 256], [256, 256], [256, 256], [256, 256], [256, 128], [128, 128], [128, 64], [64, 64], [64, 3]], "encoder": 14022912, "decoder": 14027878, "sections": [[2880, 4718592], [4721600, 1024], [5763904, 2359296], [8123328, 1024], [8124480, 2359296], [10483904, 1024], [10485056, 2359296], [12844480, 1024], [12845632, 1179648], [14025408, 512], [4722752, 589824], [5312704, 512], [5313344, 294912], [5608384, 256], [5608768, 147456], [5756352, 256], [5756736, 6912], [5763776, 12]]};
 const kernel64="AGFzbQEAAAABCAFgBH9/f38AAg8BA2VudgZtZW1vcnkCAAEDAgEABwgBBHRpbGUAAAr/AwH8AwIDfxV7IAAgA0ECdGohBCAEIANBAnRqIQUgBSADQQJ0aiEGA0AgAf0AAgAhByAB/QACECEIIAH9AAIgIQkgAf0AAjAhCiAA/QkCACELIAwgCyAH/eYB/eQBIQwgDSALIAj95gH95AEhDSAOIAsgCf3mAf3kASEOIA8gCyAK/eYB/eQBIQ8gAEEEaiEAIAT9CQIAIQsgECALIAf95gH95AEhECARIAsgCP3mAf3kASERIBIgCyAJ/eYB/eQBIRIgEyALIAr95gH95AEhEyAEQQRqIQQgBf0JAgAhCyAUIAsgB/3mAf3kASEUIBUgCyAI/eYB/eQBIRUgFiALIAn95gH95AEhFiAXIAsgCv3mAf3kASEXIAVBBGohBSAG/QkCACELIBggCyAH/eYB/eQBIRggGSALIAj95gH95AEhGSAaIAsgCf3mAf3kASEaIBsgCyAK/eYB/eQBIRsgBkEEaiEGIAFBwABqIQEgA0EBayIDDQALIAIgDP0LAgAgAiAN/QsCECACIA79CwIgIAIgD/0LAjAgAiAQ/QsCQCACIBH9CwJQIAIgEv0LAmAgAiAT/QsCcCACIBT9CwKAASACIBX9CwKQASACIBb9CwKgASACIBf9CwKwASACIBj9CwLAASACIBn9CwLQASACIBr9CwLgASACIBv9CwLwAQs=";
 // NHWC activations; the model stores the original PyTorch OIHW float32 values.
-async function buildNetwork(manifest, bytes, kernel) {
-  const raw = new Float32Array(bytes);
+async function buildNetwork(manifest, bytes, kernel, author) {
+  const raw = new Float32Array(bytes, author ? 48 : 0);
   const maxK = Math.max(...manifest.layers.map(([cin]) => 9 * cin));
   const tileEnd = 4 * maxK + 64;
   const packedCount = manifest.layers.reduce((n,[cin,cout]) => n + 9*cin*Math.ceil(cout/16)*16, 0);
@@ -73,8 +73,8 @@ async function buildNetwork(manifest, bytes, kernel) {
   function encode(input) {
     let x=input;
     for(let layer=0;layer<9;layer++) {
-      if(layer===2 || layer===4 || layer===8) x=maxPool(x);
-      x=conv(x,layer,false,true);
+      if(layer===2 || layer===4 || layer===8) x=maxPool(x,author);
+      x=conv(x,layer,author,true);
     }
     return x;
   }
@@ -98,11 +98,13 @@ async function buildNetwork(manifest, bytes, kernel) {
   };
 }
 
-function maxPool({w,h,c,data}) {
-  const width=Math.floor(w/2),height=Math.floor(h/2), out=new Float32Array(width*height*c);
+function maxPool({w,h,c,data}, ceilMode) {
+  const round=ceilMode ? Math.ceil : Math.floor;
+  const width=round(w/2),height=round(h/2), out=new Float32Array(width*height*c);
   for(let y=0;y<height;y++) for(let x=0;x<width;x++) {
-    const p=(2*y*w+2*x)*c, q=(y*width+x)*c, row=w*c;
-    for(let j=0;j<c;j++) out[q+j]=Math.max(data[p+j],data[p+c+j],data[p+row+j],data[p+row+c+j]);
+    const p=(2*y*w+2*x)*c, q=(y*width+x)*c;
+    const right=2*x+1<w ? c : 0, down=2*y+1<h ? w*c : 0;
+    for(let j=0;j<c;j++) out[q+j]=Math.max(data[p+j],data[p+right+j],data[p+down+j],data[p+down+right+j]);
   }
   return {w:width,h:height,c,data:out};
 }
@@ -129,7 +131,7 @@ function statistics({w,h,c,data}) {
   return {mean,std};
 }
 
-let network;
+const models=new Map();
 const postStatus = message => self.postMessage({message});
 async function getModelFile(name, size, embedded) {
   if (embedded) return Uint8Array.from(atob(embedded), c => c.charCodeAt(0));
@@ -139,38 +141,58 @@ async function getModelFile(name, size, embedded) {
   if (data.length !== size) throw Error(name + " 下载不完整。");
   return data;
 }
-async function loadModel(offline) {
+async function loadModel(modelId, offline) {
   postStatus("正在载入模型（约 28 MB）…");
+  const author=modelId==="author";
+  const decoderSize=manifest.sections.reduce((sum,section)=>sum+section[1],0);
   const [encoder, decoder] = await Promise.all([
-    getModelFile("encoder.bin",manifest.encoder,offline?.encoder),
-    getModelFile("decoder_epoch_10.pth",manifest.decoder,offline?.decoder)
+    getModelFile(author ? "author-encoder.bin" : "encoder.bin",manifest.encoder+(author ? 48 : 0),offline?.encoder),
+    getModelFile(author ? "author-decoder.bin" : "decoder_epoch_10.pth",author ? decoderSize : manifest.decoder,offline?.decoder)
   ]);
-  const size=manifest.encoder + manifest.sections.reduce((sum,p)=>sum+p[1],0);
-  const raw=new Uint8Array(size);
+  const raw=new Uint8Array(encoder.length+decoderSize);
   raw.set(encoder);
-  let at=manifest.encoder;
-  for(const [offset,length] of manifest.sections) {
-    raw.set(decoder.subarray(offset,offset+length),at);
-    at+=length;
+  if(author) {
+    raw.set(decoder,encoder.length);
+  } else {
+    let at=encoder.length;
+    for(const [offset,length] of manifest.sections) {
+      raw.set(decoder.subarray(offset,offset+length),at);
+      at+=length;
+    }
   }
-  return buildNetwork(manifest,raw.buffer,Uint8Array.from(atob(kernel64), c=>c.charCodeAt(0)));
+  // The author's VGG starts with a learned 1×1 RGB preprocessing convolution.
+  const preprocess=author ? new Float32Array(encoder.buffer,encoder.byteOffset,12).slice() : null;
+  const run=await buildNetwork(manifest,raw.buffer,Uint8Array.from(atob(kernel64), c=>c.charCodeAt(0)),author);
+  return {run,preprocess};
 }
 const mean=[.485,.456,.406], std=[.229,.224,.225];
-function normalized({width,height,data}) {
+function normalized({width,height,data}, preprocess) {
   const out=new Float32Array(width*height*3);
-  for(let i=0;i<width*height;i++) for(let j=0;j<3;j++) out[3*i+j]=(data[4*i+j]/255-mean[j])/std[j];
+  for(let i=0;i<width*height;i++) {
+    for(let j=0;j<3;j++) {
+      if(preprocess) {
+        const offset=3*j;
+        out[3*i+j]=(data[4*i]*preprocess[offset]+data[4*i+1]*preprocess[offset+1]+data[4*i+2]*preprocess[offset+2])/255+preprocess[9+j];
+      } else {
+        out[3*i+j]=(data[4*i+j]/255-mean[j])/std[j];
+      }
+    }
+  }
   return {w:width,h:height,c:3,data:out};
 }
 self.onmessage=async ({data})=>{
   try {
-    if(!network) network=await loadModel(data.offline);
-    const image=network(normalized(data.content),normalized(data.style),data.alpha,postStatus);
+    const id=data.model??"ours";
+    if(id!=="ours" && id!=="author") throw Error("未知模型。");
+    if(!models.has(id)) models.set(id,await loadModel(id,data.offline));
+    const {run,preprocess}=models.get(id);
+    const image=run(normalized(data.content,preprocess),normalized(data.style,preprocess),data.alpha,postStatus);
     const rgba=new Uint8ClampedArray(image.w*image.h*4);
     for(let p=0;p<image.w*image.h;p++) {
       for(let ch=0;ch<3;ch++) {
         const value=image.data[3*p+ch];
         if(!Number.isFinite(value)) throw Error("模型输出含非有限数值。");
-        rgba[p*4+ch]=(value*std[ch]+mean[ch])*255;
+        rgba[p*4+ch]=(preprocess ? value : value*std[ch]+mean[ch])*255;
       }
       rgba[p*4+3]=255;
     }
